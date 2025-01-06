@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: ${{ (github.repository != 'bndtools/bnd') || ((github.ref != 'refs/heads/master') && (github.ref != 'refs/heads/next')) || (github.event_name == 'pull_request') }}
       matrix:
-        os: [ 'ubuntu-latest', 'windows-latest' ]
+        os: [ 'ubuntu-latest', 'windows-latest'  ]
         java:
         - '20'
         runner:
