@@ -1,4 +1,4 @@
-package org.bndtools.build.api;
+package org.bndtools.api.build.api;
 
 import java.util.Map;
 

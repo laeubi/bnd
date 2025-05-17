@@ -2,8 +2,8 @@ package org.bndtools.builder;
 
 import java.util.List;
 
-import org.bndtools.build.api.BuildErrorDetailsHandler;
-import org.bndtools.build.api.BuildErrorDetailsHandlers;
+import org.bndtools.api.build.api.BuildErrorDetailsHandler;
+import org.bndtools.api.build.api.BuildErrorDetailsHandlers;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.ui.IMarkerResolution;
 import org.eclipse.ui.IMarkerResolutionGenerator;

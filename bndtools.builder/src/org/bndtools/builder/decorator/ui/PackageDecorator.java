@@ -4,7 +4,7 @@ import java.io.File;
 
 import org.bndtools.api.ILogger;
 import org.bndtools.api.Logger;
-import org.bndtools.build.api.IProjectDecorator.BndProjectInfo;
+import org.bndtools.api.build.api.IProjectDecorator.BndProjectInfo;
 import org.bndtools.builder.BndtoolsBuilder;
 import org.bndtools.core.ui.icons.Icons;
 import org.bndtools.utils.swt.SWTConcurrencyUtil;

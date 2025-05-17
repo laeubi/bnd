@@ -4,7 +4,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.Collection;
 
-import org.bndtools.build.api.IProjectDecorator.BndProjectInfo;
+import org.bndtools.api.build.api.IProjectDecorator.BndProjectInfo;
 
 import aQute.bnd.build.Project;
 import aQute.bnd.osgi.Packages;

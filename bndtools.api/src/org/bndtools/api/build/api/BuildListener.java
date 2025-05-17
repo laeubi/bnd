@@ -1,4 +1,4 @@
-package org.bndtools.build.api;
+package org.bndtools.api.build.api;
 
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.runtime.IPath;

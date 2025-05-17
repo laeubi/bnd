@@ -1,6 +1,6 @@
 package org.bndtools.builder.decorator.ui;
 
-import org.bndtools.build.api.IProjectDecorator;
+import org.bndtools.api.build.api.IProjectDecorator;
 import org.bndtools.builder.ComponentMarker;
 import org.eclipse.core.resources.IProject;
 import org.osgi.annotation.bundle.Capability;

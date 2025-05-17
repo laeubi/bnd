@@ -1,6 +1,6 @@
 package org.bndtools.builder;
 
-import org.bndtools.build.api.IProjectDecorator;
+import org.bndtools.api.build.api.IProjectDecorator;
 import org.bndtools.builder.decorator.ui.ProjectDecoratorImpl;
 import org.osgi.framework.BundleContext;
 
