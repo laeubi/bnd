@@ -12,8 +12,6 @@ import org.osgi.service.component.annotations.Component;
 import aQute.bnd.build.Project;
 import aQute.bnd.build.Workspace;
 import biz.aQute.resolve.Bndrun;
-import bndtools.central.Central;
-import bndtools.launch.util.LaunchUtils;
 
 @Component(property = Constants.SERVICE_RANKING + ":Integer=2000")
 public class DefaultRunProvider implements RunProvider {
@@ -23,7 +21,7 @@ public class DefaultRunProvider implements RunProvider {
 		Workspace ws = null;
 
 		if (LaunchUtils.isInBndWorkspaceProject(targetResource)) {
-			ws = Central.getWorkspaceIfPresent();
+			// ws = Central.getWorkspaceIfPresent();
 		}
 
 		if (targetResource.getType() == IResource.PROJECT) {

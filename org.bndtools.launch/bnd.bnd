@@ -28,7 +28,6 @@ Import-Package: \
 	biz.aQute.resolve;version=latest,\
 	bndtools.utils;version=project;packages='*',\
 	bndtools.api;version=latest,\
-	bndtools.core;version=latest,\
 	slf4j.api,\
 	org.apiguardian.api,\
 	org.eclipse.core.runtime,\

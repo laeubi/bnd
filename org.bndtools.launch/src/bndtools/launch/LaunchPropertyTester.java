@@ -9,8 +9,6 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.osgi.service.component.annotations.Component;
 
-import bndtools.launch.util.LaunchUtils;
-
 @Component(service = IPropertyTester.class)
 public class LaunchPropertyTester extends PropertyTester {
 	private static final ILogger	logger						= Logger.getLogger(LaunchPropertyTester.class);

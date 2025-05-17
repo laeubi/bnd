@@ -55,7 +55,6 @@ import aQute.bnd.build.ProjectLauncher;
 import aQute.bnd.build.ProjectTester;
 import aQute.bnd.service.EclipseJUnitTester;
 import aQute.lib.io.IO;
-import bndtools.launch.util.LaunchUtils;
 
 @Component(scope = ServiceScope.PROTOTYPE, service = ILaunchConfigurationDelegate2.class)
 public class OSGiJUnitLaunchDelegate extends AbstractOSGiLaunchDelegate {

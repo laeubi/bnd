@@ -13,7 +13,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.logging.Level;
@@ -60,11 +59,6 @@ import aQute.bnd.build.ProjectLauncher;
 import aQute.bnd.build.Run;
 import aQute.bnd.build.Workspace;
 import aQute.bnd.osgi.Jar;
-import bndtools.Plugin;
-import bndtools.StatusCode;
-import bndtools.central.Central;
-import bndtools.launch.util.LaunchUtils;
-import bndtools.preferences.BndPreferences;
 
 public abstract class AbstractOSGiLaunchDelegate extends JavaLaunchDelegate {
 	@SuppressWarnings("deprecation")
@@ -186,25 +180,27 @@ public abstract class AbstractOSGiLaunchDelegate extends JavaLaunchDelegate {
 		throws CoreException {
 		try {
 			run = LaunchUtils.createRun(configuration, getRunMode());
-			return Central.getWorkspace()
-				.readLocked(() -> {
-
-					initialiseBndLauncher(configuration, run);
-
-					if (!checkProjectErrors(configuration, mode, monitor))
-						return false;
-
-					if (prefs.getWarnExistingLaunches() && !checkExistingLaunches(configuration))
-						return false;
-
-					IStatus launchStatus = getLauncherStatus();
-
-					IStatusHandler prompter = DebugPlugin.getDefault()
-						.getStatusHandler(launchStatus);
-					if (prompter != null)
-						return (Boolean) prompter.handleStatus(launchStatus, run);
-					return true;
-				});
+			// return Central.getWorkspace()
+			// .readLocked(() -> {
+			//
+			// initialiseBndLauncher(configuration, run);
+			//
+			// if (!checkProjectErrors(configuration, mode, monitor))
+			// return false;
+			//
+			// if (prefs.getWarnExistingLaunches() &&
+			// !checkExistingLaunches(configuration))
+			// return false;
+			//
+			// IStatus launchStatus = getLauncherStatus();
+			//
+			// IStatusHandler prompter = DebugPlugin.getDefault()
+			// .getStatusHandler(launchStatus);
+			// if (prompter != null)
+			// return (Boolean) prompter.handleStatus(launchStatus, run);
+			// return true;
+			// });
+			return true;
 		} catch (Exception e) {
 			throw new CoreException(new Status(IStatus.ERROR, PLUGIN_ID, 0, "Error initialising bnd launcher", e));
 		}
@@ -268,10 +264,11 @@ public abstract class AbstractOSGiLaunchDelegate extends JavaLaunchDelegate {
 
 		SubMonitor checkProjectErrorMonitor = SubMonitor.convert(monitor, "Check Project Errors", 1);
 
-		IProject[] projects = Central.getWorkspace()
-			.readLocked(() -> {
-				return getRelatedProjects();
-			});
+		IProject[] projects = null;
+		// Central.getWorkspace()
+		// .readLocked(() -> {
+		// return getRelatedProjects();
+		// });
 
 		SubMonitor loopMonitor = checkProjectErrorMonitor.split(1)
 			.setWorkRemaining(projects.length);
@@ -309,20 +306,23 @@ public abstract class AbstractOSGiLaunchDelegate extends JavaLaunchDelegate {
 		if (p instanceof Run) {
 			return getAllIProjects(p.getWorkspace());
 		}
-		return Central.getProject(p)
-			.map(x -> new IProject[] {
-				x
-			})
-			.orElse(new IProject[0]);
+		// return Central.getProject(p)
+		// .map(x -> new IProject[] {
+		// x
+		// })
+		// .orElse(new IProject[0]);
+		// TODO
+		return null;
 	}
 
 	private static IProject[] getAllIProjects(Workspace ws) {
-		return ws.getAllProjects()
-			.stream()
-			.map(bp -> Central.getProject(bp)
-				.orElse(null))
-			.filter(Objects::nonNull)
-			.toArray(IProject[]::new);
+		// return ws.getAllProjects()
+		// .stream()
+		// .map(bp -> Central.getProject(bp)
+		// .orElse(null))
+		// .filter(Objects::nonNull)
+		// .toArray(IProject[]::new);
+		return null; // TODO adaption!
 	}
 
 	@Override
@@ -462,13 +462,13 @@ public abstract class AbstractOSGiLaunchDelegate extends JavaLaunchDelegate {
 
 		final IPath bndbndPath;
 		try {
-			bndbndPath = Central.toPath(project.getPropertiesFile());
+			bndbndPath = toPath(project.getPropertiesFile());
 		} catch (Exception e) {
 			throw new CoreException(new Status(IStatus.ERROR, PLUGIN_ID, 0, "Error querying bnd.bnd file location", e));
 		}
 
 		try {
-			Central.toPath(project.getTarget());
+			toPath(project.getTarget());
 		} catch (Exception e) {
 			throw new CoreException(new Status(IStatus.ERROR, PLUGIN_ID, 0, "Error querying project output folder", e));
 		}
@@ -536,6 +536,11 @@ public abstract class AbstractOSGiLaunchDelegate extends JavaLaunchDelegate {
 			}));
 	}
 
+	private IPath toPath(File propertiesFile) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
 	private void scheduleUpdate() {
 		if (updatePending.compareAndSet(false, true)) {
 			Job job = Job.create("Update launched application...", (IJobFunction) monitor -> {
@@ -577,12 +582,13 @@ public abstract class AbstractOSGiLaunchDelegate extends JavaLaunchDelegate {
 		}
 		String logLevelStr = configuration.getAttribute(ATTR_LOGLEVEL, (String) null);
 		if (logLevelStr != null) {
-			Plugin.getDefault()
-				.getLog()
-				.log(new Status(IStatus.WARNING, PLUGIN_ID, 0,
-					MessageFormat.format("The {0} attribute is no longer supported, use {1} instead.", ATTR_LOGLEVEL,
-						LaunchConstants.ATTR_TRACE),
-					null));
+			// Plugin.getDefault()
+			// .getLog()
+			// .log(new Status(IStatus.WARNING, PLUGIN_ID, 0,
+			// MessageFormat.format("The {0} attribute is no longer supported,
+			// use {1} instead.", ATTR_LOGLEVEL,
+			// LaunchConstants.ATTR_TRACE),
+			// null));
 			Level logLevel = Level.parse(logLevelStr);
 			launcher.setTrace(launcher.getTrace() || logLevel.intValue() <= Level.FINE.intValue());
 		}

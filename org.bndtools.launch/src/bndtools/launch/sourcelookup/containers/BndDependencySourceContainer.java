@@ -16,7 +16,7 @@ import org.eclipse.debug.core.sourcelookup.containers.CompositeSourceContainer;
 
 import aQute.bnd.build.Run;
 import aQute.bnd.exceptions.Exceptions;
-import bndtools.launch.util.LaunchUtils;
+import bndtools.launch.LaunchUtils;
 
 public class BndDependencySourceContainer extends CompositeSourceContainer {
 	private static final ILogger	logger	= Logger.getLogger(BndDependencySourceContainer.class);

@@ -22,7 +22,7 @@ import aQute.bnd.build.WorkspaceRepository;
 import aQute.bnd.service.RepositoryPlugin;
 import aQute.bnd.service.RepositoryPlugin.DownloadListener;
 import aQute.bnd.version.Version;
-import bndtools.central.RepositoryUtils;
+import bndtools.launch.RepositoryUtils;
 
 public class BundleSourceContainer extends AbstractSourceContainer {
 	private static final ILogger				logger		= Logger.getLogger(BundleSourceContainer.class);

@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.Callable;
 
+import org.bndtools.api.BndtoolsConstants;
 import org.bndtools.api.RunMode;
 import org.bndtools.api.launch.LaunchConstants;
 import org.eclipse.core.resources.IResource;
@@ -13,6 +14,7 @@ import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.IStatus;
+import org.eclipse.core.runtime.MultiStatus;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.debug.core.DebugPlugin;
@@ -31,10 +33,9 @@ import aQute.bnd.build.ProjectLauncher;
 import aQute.bnd.build.RunSession;
 import aQute.bnd.osgi.Processor;
 import aQute.lib.io.IO;
-import bndtools.central.Central;
+import bndtools.launch.BndPreferences;
+import bndtools.launch.LaunchUtils;
 import bndtools.launch.ui.internal.LaunchStatusHandler;
-import bndtools.launch.util.LaunchUtils;
-import bndtools.preferences.BndPreferences;
 
 /**
  * The link between the Eclipse launching subsystem and the bnd launcher. We
@@ -130,7 +131,7 @@ public class NativeBndLaunchDelegate extends JavaRemoteApplicationLaunchConfigur
 				}
 
 				if (!p.isOk()) {
-					IStatus status = Central.toStatus(projectLauncher, "Errors detected during the launch");
+					IStatus status = toStatus(projectLauncher, "Errors detected during the launch");
 					IStatusHandler prompter = DebugPlugin.getDefault()
 						.getStatusHandler(status);
 					Boolean cont = (Boolean) prompter.handleStatus(status, null);
@@ -152,7 +153,7 @@ public class NativeBndLaunchDelegate extends JavaRemoteApplicationLaunchConfigur
 			p.exception(e, "While starting a launch %s", configuration);
 		} finally {
 			if (!p.isOk()) {
-				IStatus status = Central.toStatus(p, "Errors detected during the launch");
+				IStatus status = toStatus(p, "Errors detected during the launch");
 				IStatusHandler prompter = new LaunchStatusHandler();
 				prompter.handleStatus(status, null);
 				launch.terminate();
@@ -208,4 +209,30 @@ public class NativeBndLaunchDelegate extends JavaRemoteApplicationLaunchConfigur
 		}
 		return false;
 	}
+
+	/**
+	 * Convert a processor to a status object
+	 */
+
+	public static IStatus toStatus(Processor processor, String message) {
+		int severity = IStatus.INFO;
+		List<IStatus> statuses = new ArrayList<>();
+		for (String error : processor.getErrors()) {
+			Status status = new Status(IStatus.ERROR, BndtoolsConstants.CORE_PLUGIN_ID, error);
+			statuses.add(status);
+			severity = IStatus.ERROR;
+		}
+		for (String warning : processor.getWarnings()) {
+			Status status = new Status(IStatus.WARNING, BndtoolsConstants.CORE_PLUGIN_ID, warning);
+			statuses.add(status);
+			severity = IStatus.WARNING;
+		}
+
+		IStatus[] array = statuses.toArray(new IStatus[0]);
+		return new MultiStatus(//
+			BndtoolsConstants.CORE_PLUGIN_ID, //
+			severity, //
+			array, message, null);
+	}
+
 }
