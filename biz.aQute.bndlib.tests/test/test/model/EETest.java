@@ -166,4 +166,30 @@ public class EETest {
 		}
 	}
 
+	@Test
+	public void testDynamicEECreation() throws Exception {
+		// Test getting existing EE
+		EE ee24 = EE.getOrCreate(24);
+		assertThat(ee24).isSameAs(EE.JavaSE_24);
+		assertThat(ee24.getEEName()).isEqualTo("JavaSE-24");
+		assertThat(ee24.getRelease()).isEqualTo(24);
+		
+		// Test creating dynamic EE for Java 31 (not defined in the class)
+		EE ee31 = EE.getOrCreate(31);
+		assertThat(ee31).isNotNull();
+		assertThat(ee31.getEEName()).isEqualTo("JavaSE-31");
+		assertThat(ee31.name()).isEqualTo("JavaSE_31");
+		assertThat(ee31.getRelease()).isEqualTo(31);
+		assertThat(ee31.getCapabilityVersion().getMajor()).isEqualTo(31);
+		
+		// Test that we get the same instance on subsequent calls
+		EE ee31_again = EE.getOrCreate(31);
+		assertThat(ee31_again).isSameAs(ee31);
+		
+		// Test creating another dynamic EE
+		EE ee40 = EE.getOrCreate(40);
+		assertThat(ee40.getRelease()).isEqualTo(40);
+		assertThat(ee40.getEEName()).isEqualTo("JavaSE-40");
+	}
+
 }
