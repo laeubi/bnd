@@ -158,18 +158,14 @@ public class GenericResolveContextResolveTest {
 					assertThat(resources).hasSize(4);
 					assertThat(resources).contains(multirelease);
 
-					switch (ee) {
-						case JavaSE_1_8 -> assertThat(resources).contains(v1_8);
-						case JavaSE_9 -> assertThat(resources).contains(v9);
-						case JavaSE_10 -> assertThat(resources).contains(v9);
-						case JavaSE_11 -> assertThat(resources).contains(v9);
-						case JavaSE_12 -> assertThat(resources).contains(v12);
-						case JavaSE_13 -> assertThat(resources).contains(v12);
-						case JavaSE_14 -> assertThat(resources).contains(v12);
-						case JavaSE_15 -> assertThat(resources).contains(v12);
-						case JavaSE_16 -> assertThat(resources).contains(v12);
-						case JavaSE_17 -> assertThat(resources).contains(v17);
-						default -> assertThat(resources).contains(v17);
+					if (ee == EE.JavaSE_1_8) {
+						assertThat(resources).contains(v1_8);
+					} else if (Set.of(EE.JavaSE_9, EE.JavaSE_10, EE.JavaSE_11).contains(ee)) {
+						assertThat(resources).contains(v9);
+					} else if (Set.of(EE.JavaSE_12, EE.JavaSE_13, EE.JavaSE_14, EE.JavaSE_15, EE.JavaSE_16).contains(ee)) {
+						assertThat(resources).contains(v12);
+					} else {
+						assertThat(resources).contains(v17);
 					}
 				} catch (Exception e) {
 					System.out.println(logger.getLog());

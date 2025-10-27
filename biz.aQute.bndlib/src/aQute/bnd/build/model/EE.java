@@ -4,11 +4,13 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 
@@ -26,70 +28,101 @@ import aQute.bnd.osgi.resource.ResourceBuilder;
 import aQute.bnd.version.Version;
 import aQute.lib.utf8properties.UTF8Properties;
 
-public enum EE {
+/**
+ * Represents an OSGi Execution Environment (EE).
+ * <p>
+ * This class was refactored from an enum to support dynamic creation of EE instances
+ * for future Java versions without requiring code changes. While predefined EE instances
+ * exist for known Java versions up to JavaSE 30, the {@link #getOrCreate(int)} method
+ * allows creating EE instances for newer Java releases as they become available.
+ * <p>
+ * Example usage:
+ * <pre>
+ * // Get a predefined EE
+ * EE ee17 = EE.JavaSE_17;
+ * 
+ * // Get or create an EE for a future Java version
+ * EE ee31 = EE.getOrCreate(31);
+ * </pre>
+ */
+public final class EE implements Comparable<EE> {
+	public static final EE OSGI_Minimum_1_0 = new EE(0, "OSGI_Minimum_1_0", "OSGi/Minimum-1.0", "OSGi/Minimum", "1.0", 0);
 
-	OSGI_Minimum_1_0("OSGi/Minimum-1.0", "OSGi/Minimum", "1.0", 0),
+	public static final EE OSGI_Minimum_1_1 = new EE(1, "OSGI_Minimum_1_1", "OSGi/Minimum-1.1", "OSGi/Minimum", "1.1", 1, OSGI_Minimum_1_0);
 
-	OSGI_Minimum_1_1("OSGi/Minimum-1.1", "OSGi/Minimum", "1.1", 1, OSGI_Minimum_1_0),
+	public static final EE OSGI_Minimum_1_2 = new EE(2, "OSGI_Minimum_1_2", "OSGi/Minimum-1.2", "OSGi/Minimum", "1.2", 2, OSGI_Minimum_1_1);
 
-	OSGI_Minimum_1_2("OSGi/Minimum-1.2", "OSGi/Minimum", "1.2", 2, OSGI_Minimum_1_1),
+	public static final EE JRE_1_1 = new EE(3, "JRE_1_1", "JRE-1.1", "JRE", "1.1", 1);
 
-	JRE_1_1("JRE-1.1", "JRE", "1.1", 1),
+	public static final EE J2SE_1_2 = new EE(4, "J2SE_1_2", "J2SE-1.2", "JavaSE", "1.2", 2, JRE_1_1);
 
-	J2SE_1_2("J2SE-1.2", "JavaSE", "1.2", 2, JRE_1_1),
+	public static final EE J2SE_1_3 = new EE(5, "J2SE_1_3", "J2SE-1.3", "JavaSE", "1.3", 3, J2SE_1_2, OSGI_Minimum_1_1);
 
-	J2SE_1_3("J2SE-1.3", "JavaSE", "1.3", 3, J2SE_1_2, OSGI_Minimum_1_1),
+	public static final EE J2SE_1_4 = new EE(6, "J2SE_1_4", "J2SE-1.4", "JavaSE", "1.4", 4, J2SE_1_3, OSGI_Minimum_1_2);
 
-	J2SE_1_4("J2SE-1.4", "JavaSE", "1.4", 4, J2SE_1_3, OSGI_Minimum_1_2),
+	public static final EE J2SE_1_5 = new EE(7, "J2SE_1_5", "J2SE-1.5", "JavaSE", "1.5", 5, J2SE_1_4);
 
-	J2SE_1_5("J2SE-1.5", "JavaSE", "1.5", 5, J2SE_1_4),
+	public static final EE JavaSE_1_6 = new EE(8, "JavaSE_1_6", "JavaSE-1.6", "JavaSE", "1.6", 6, J2SE_1_5);
 
-	JavaSE_1_6("JavaSE-1.6", "JavaSE", "1.6", 6, J2SE_1_5),
+	public static final EE JavaSE_1_7 = new EE(9, "JavaSE_1_7", "JavaSE-1.7", "JavaSE", "1.7", 7, JavaSE_1_6);
 
-	JavaSE_1_7("JavaSE-1.7", "JavaSE", "1.7", 7, JavaSE_1_6),
+	public static final EE JavaSE_compact1_1_8 = new EE(10, "JavaSE_compact1_1_8", "JavaSE/compact1-1.8", "JavaSE/compact1", "1.8", 8, OSGI_Minimum_1_2);
 
-	JavaSE_compact1_1_8("JavaSE/compact1-1.8", "JavaSE/compact1", "1.8", 8, OSGI_Minimum_1_2),
+	public static final EE JavaSE_compact2_1_8 = new EE(11, "JavaSE_compact2_1_8", "JavaSE/compact2-1.8", "JavaSE/compact2", "1.8", 8, JavaSE_compact1_1_8);
 
-	JavaSE_compact2_1_8("JavaSE/compact2-1.8", "JavaSE/compact2", "1.8", 8, JavaSE_compact1_1_8),
+	public static final EE JavaSE_compact3_1_8 = new EE(12, "JavaSE_compact3_1_8", "JavaSE/compact3-1.8", "JavaSE/compact3", "1.8", 8, JavaSE_compact2_1_8);
 
-	JavaSE_compact3_1_8("JavaSE/compact3-1.8", "JavaSE/compact3", "1.8", 8, JavaSE_compact2_1_8),
+	public static final EE JavaSE_1_8 = new EE(13, "JavaSE_1_8", "JavaSE-1.8", "JavaSE", "1.8", 8, JavaSE_1_7, JavaSE_compact3_1_8);
 
-	JavaSE_1_8("JavaSE-1.8", "JavaSE", "1.8", 8, JavaSE_1_7, JavaSE_compact3_1_8),
+	public static final EE JavaSE_9 = new EE(14, "JavaSE_9", 9);
+	public static final EE JavaSE_10 = new EE(15, "JavaSE_10", 10);
+	public static final EE JavaSE_11 = new EE(16, "JavaSE_11", 11);
+	public static final EE JavaSE_12 = new EE(17, "JavaSE_12", 12);
+	public static final EE JavaSE_13 = new EE(18, "JavaSE_13", 13);
+	public static final EE JavaSE_14 = new EE(19, "JavaSE_14", 14);
+	public static final EE JavaSE_15 = new EE(20, "JavaSE_15", 15);
+	public static final EE JavaSE_16 = new EE(21, "JavaSE_16", 16);
+	public static final EE JavaSE_17 = new EE(22, "JavaSE_17", 17);
+	public static final EE JavaSE_18 = new EE(23, "JavaSE_18", 18);
+	public static final EE JavaSE_19 = new EE(24, "JavaSE_19", 19);
+	public static final EE JavaSE_20 = new EE(25, "JavaSE_20", 20);
+	public static final EE JavaSE_21 = new EE(26, "JavaSE_21", 21);
+	public static final EE JavaSE_22 = new EE(27, "JavaSE_22", 22);
+	public static final EE JavaSE_23 = new EE(28, "JavaSE_23", 23);
+	public static final EE JavaSE_24 = new EE(29, "JavaSE_24", 24);
+	public static final EE JavaSE_25 = new EE(30, "JavaSE_25", 25);
+	public static final EE JavaSE_26 = new EE(31, "JavaSE_26", 26);
+	public static final EE JavaSE_27 = new EE(32, "JavaSE_27", 27);
+	public static final EE JavaSE_28 = new EE(33, "JavaSE_28", 28);
+	public static final EE JavaSE_29 = new EE(34, "JavaSE_29", 29);
+	public static final EE JavaSE_30 = new EE(35, "JavaSE_30", 30);
 
-	JavaSE_9(9),
-	JavaSE_10(10),
-	JavaSE_11(11),
-	JavaSE_12(12),
-	JavaSE_13(13),
-	JavaSE_14(14),
-	JavaSE_15(15),
-	JavaSE_16(16),
-	JavaSE_17(17),
-	JavaSE_18(18),
-	JavaSE_19(19),
-	JavaSE_20(20),
-	JavaSE_21(21),
-	JavaSE_22(22),
-	JavaSE_23(23),
-	JavaSE_24(24),
-	JavaSE_25(25),
-	JavaSE_26(26),
-	JavaSE_27(27),
-	JavaSE_28(28),
-	JavaSE_29(29),
-	JavaSE_30(30),
-
-	UNKNOWN("<UNKNOWN>", "UNKNOWN", "0", 0);
+	public static final EE UNKNOWN = new EE(36, "UNKNOWN", "<UNKNOWN>", "UNKNOWN", "0", 0);
 
 	final public static int			MAX_SUPPORTED_RELEASE	= 24;
-
+	
+	private static final EE[] KNOWN_EES = {
+		OSGI_Minimum_1_0, OSGI_Minimum_1_1, OSGI_Minimum_1_2, 
+		JRE_1_1, J2SE_1_2, J2SE_1_3, J2SE_1_4, J2SE_1_5, 
+		JavaSE_1_6, JavaSE_1_7, 
+		JavaSE_compact1_1_8, JavaSE_compact2_1_8, JavaSE_compact3_1_8, JavaSE_1_8,
+		JavaSE_9, JavaSE_10, JavaSE_11, JavaSE_12, JavaSE_13, JavaSE_14, JavaSE_15, 
+		JavaSE_16, JavaSE_17, JavaSE_18, JavaSE_19, JavaSE_20, JavaSE_21, JavaSE_22, 
+		JavaSE_23, JavaSE_24, JavaSE_25, JavaSE_26, JavaSE_27, JavaSE_28, JavaSE_29, JavaSE_30,
+		UNKNOWN
+	};
+	
+	private static final Map<String, EE> BY_NAME = new HashMap<>();
+	private static final Map<Integer, EE> BY_RELEASE = new HashMap<>();
+	private final int				ordinal;
+	private final String			name;
 	private final String			eeName;
 	private final String			capabilityName;
 	private final String			versionLabel;
 	private final Version			capabilityVersion;
 	private final EE[]				compatible;
 	private final int				release;
-	private transient EnumSet<EE>	compatibleSet;
+	private transient Set<EE>		compatibleSet;
 	private transient Parameters	packages				= null;
 	private transient Parameters	modules					= null;
 
@@ -97,8 +130,13 @@ public enum EE {
 	/**
 	 * For use by JavaSE_9 and later.
 	 */
-	EE(int release) {
-		int version = ordinal() - 5;
+	private EE(int ordinal, String name, int release) {
+		this.ordinal = ordinal;
+		this.name = name;
+		// Calculate version from ordinal: ordinal 14 = JavaSE_9, so version = 14 - 5 = 9
+		// This offset (5) accounts for the pre-Java 9 EE instances (OSGI_Minimum_*, JRE_1_1, J2SE_*)
+		// that come before JavaSE_9 in the ordinal sequence
+		int version = ordinal - 5;
 		this.versionLabel = Integer.toString(version);
 		this.eeName = "JavaSE-" + versionLabel;
 		this.capabilityName = "JavaSE";
@@ -107,7 +145,9 @@ public enum EE {
 		this.release = release;
 	}
 
-	EE(String eeName, String capabilityName, String versionLabel, int release, EE... compatible) {
+	private EE(int ordinal, String name, String eeName, String capabilityName, String versionLabel, int release, EE... compatible) {
+		this.ordinal = ordinal;
+		this.name = name;
 		this.eeName = eeName;
 		this.capabilityName = capabilityName;
 		this.versionLabel = versionLabel;
@@ -115,9 +155,73 @@ public enum EE {
 		this.compatible = compatible;
 		this.release = release;
 	}
+	
+	static {
+		for (EE ee : KNOWN_EES) {
+			BY_NAME.put(ee.eeName.toLowerCase(), ee);
+			if (ee.release > 0) {
+				BY_RELEASE.put(ee.release, ee);
+			}
+		}
+	}
+	
+	/**
+	 * Get or create an EE instance for the given release version.
+	 * This allows dynamic support for future Java versions without code changes.
+	 * 
+	 * @param release the Java release version (e.g., 9, 11, 17, 21, etc.)
+	 * @return the EE instance for the given release
+	 */
+	public static EE getOrCreate(int release) {
+		EE existing = BY_RELEASE.get(release);
+		if (existing != null) {
+			return existing;
+		}
+		
+		// Create a dynamic EE instance for newer Java versions
+		// Find the highest known EE (excluding UNKNOWN) to use as a base for ordinal calculation
+		EE highestKnown = null;
+		int maxRelease = 0;
+		for (int i = 0; i < KNOWN_EES.length - 1; i++) { // -1 to skip UNKNOWN
+			EE ee = KNOWN_EES[i];
+			if (ee.release > maxRelease) {
+				maxRelease = ee.release;
+				highestKnown = ee;
+			}
+		}
+		
+		int newOrdinal = highestKnown.ordinal + (release - highestKnown.release);
+		String name = "JavaSE_" + release;
+		EE newEE = new EE(newOrdinal, name, release);
+		
+		// Cache it for future use
+		synchronized (BY_RELEASE) {
+			BY_RELEASE.putIfAbsent(release, newEE);
+			return BY_RELEASE.get(release);
+		}
+	}
 
 	public String getEEName() {
 		return eeName;
+	}
+	
+	/**
+	 * Returns the symbolic name of this EE, equivalent to the enum constant name.
+	 * Used for loading properties files.
+	 * 
+	 * @return the symbolic name
+	 */
+	public String name() {
+		return name;
+	}
+	
+	/**
+	 * Returns the ordinal of this EE, equivalent to the enum ordinal.
+	 * 
+	 * @return the ordinal
+	 */
+	public int ordinal() {
+		return ordinal;
 	}
 
 	/**
@@ -125,25 +229,25 @@ public enum EE {
 	 *         compatibility.
 	 */
 	public EE[] getCompatible() {
-		EnumSet<EE> set = getCompatibleSet();
+		Set<EE> set = getCompatibleSet();
 		return set.toArray(new EE[0]);
 	}
 
-	private static final EE[] values = values();
+	private static final EE[] values = KNOWN_EES;
 
 	private Optional<EE> previous() {
-		int ordinal = ordinal() - 1;
-		if (ordinal >= 0) {
-			return Optional.of(values[ordinal]);
+		int prevOrdinal = ordinal - 1;
+		if (prevOrdinal >= 0 && prevOrdinal < values.length) {
+			return Optional.of(values[prevOrdinal]);
 		}
 		return Optional.empty();
 	}
 
-	private EnumSet<EE> getCompatibleSet() {
+	private Set<EE> getCompatibleSet() {
 		if (compatibleSet != null) {
 			return compatibleSet;
 		}
-		EnumSet<EE> set = EnumSet.noneOf(getDeclaringClass());
+		Set<EE> set = new LinkedHashSet<>();
 		if (compatible != null) {
 			for (EE ee : compatible) {
 				set.add(ee);
@@ -212,11 +316,10 @@ public enum EE {
 	}
 
 	public static EE parse(String str) {
-		for (EE ee : values) {
-			if (ee.eeName.equalsIgnoreCase(str))
-				return ee;
+		if (str == null) {
+			return null;
 		}
-		return null;
+		return BY_NAME.get(str.toLowerCase());
 	}
 
 	/**
@@ -330,17 +433,26 @@ public enum EE {
 	 */
 
 	public static EE getEEFromReleaseVersion(int releaseVersion) {
-		for (int i = values().length - 1; i >= 0; i--) {
-			EE ee = values()[i];
-			if (ee.release == releaseVersion)
-				return ee;
+		EE ee = BY_RELEASE.get(releaseVersion);
+		if (ee != null) {
+			return ee;
 		}
+		// For unknown release versions, return UNKNOWN
 		return UNKNOWN;
+	}
+
+	/**
+	 * Returns an array of all known EE instances.
+	 * 
+	 * @return array of all known EE instances
+	 */
+	public static EE[] values() {
+		return values.clone();
 	}
 
 	static SortedSet<EE> all;
 	static {
-		var a = new TreeSet<>(Arrays.asList(EE.values));
+		var a = new TreeSet<>(Arrays.asList(values));
 		a.remove(UNKNOWN);
 		all = Collections.unmodifiableSortedSet(a);
 	}
@@ -365,5 +477,35 @@ public enum EE {
 
 		rb.addEE(this);
 		return resource = rb.build();
+	}
+	
+	@Override
+	public int compareTo(EE other) {
+		if (other == null) {
+			return 1;
+		}
+		return Integer.compare(this.ordinal, other.ordinal);
+	}
+	
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj) {
+			return true;
+		}
+		if (!(obj instanceof EE)) {
+			return false;
+		}
+		EE other = (EE) obj;
+		return this.ordinal == other.ordinal;
+	}
+	
+	@Override
+	public int hashCode() {
+		return Integer.hashCode(ordinal);
+	}
+	
+	@Override
+	public String toString() {
+		return name;
 	}
 }
