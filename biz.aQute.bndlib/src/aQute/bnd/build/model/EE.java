@@ -28,6 +28,23 @@ import aQute.bnd.osgi.resource.ResourceBuilder;
 import aQute.bnd.version.Version;
 import aQute.lib.utf8properties.UTF8Properties;
 
+/**
+ * Represents an OSGi Execution Environment (EE).
+ * <p>
+ * This class was refactored from an enum to support dynamic creation of EE instances
+ * for future Java versions without requiring code changes. While predefined EE instances
+ * exist for known Java versions up to JavaSE 30, the {@link #getOrCreate(int)} method
+ * allows creating EE instances for newer Java releases as they become available.
+ * <p>
+ * Example usage:
+ * <pre>
+ * // Get a predefined EE
+ * EE ee17 = EE.JavaSE_17;
+ * 
+ * // Get or create an EE for a future Java version
+ * EE ee31 = EE.getOrCreate(31);
+ * </pre>
+ */
 public final class EE implements Comparable<EE> {
 	public static final EE OSGI_Minimum_1_0 = new EE(0, "OSGI_Minimum_1_0", "OSGi/Minimum-1.0", "OSGi/Minimum", "1.0", 0);
 

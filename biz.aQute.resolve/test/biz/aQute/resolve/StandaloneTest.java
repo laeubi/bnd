@@ -5,8 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
+import java.util.Arrays;
 import java.util.Collection;
-import java.util.EnumSet;
 import java.util.Formatter;
 import java.util.List;
 import java.util.SortedSet;
@@ -37,7 +37,7 @@ public class StandaloneTest {
 		File loc = new File(dir, "repo.xml");
 		File bndrun = new File(dir, "test.bndrun");
 
-		for (EE ee : EnumSet.of(EE.JavaSE_1_8, EE.JavaSE_10, EE.JavaSE_12, EE.JavaSE_19)) {
+		for (EE ee : Arrays.asList(EE.JavaSE_1_8, EE.JavaSE_10, EE.JavaSE_12, EE.JavaSE_19)) {
 			System.out.println(ee);
 			ResourcesRepository repo = new ResourcesRepository();
 			repo.add(ResourceBuilder.parse(IO.getFile("testdata/jar/multi-release-ok.jar"), null));
