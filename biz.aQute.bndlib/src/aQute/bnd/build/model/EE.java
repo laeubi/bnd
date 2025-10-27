@@ -133,6 +133,9 @@ public final class EE implements Comparable<EE> {
 	private EE(int ordinal, String name, int release) {
 		this.ordinal = ordinal;
 		this.name = name;
+		// Calculate version from ordinal: ordinal 14 = JavaSE_9, so version = 14 - 5 = 9
+		// This offset (5) accounts for the pre-Java 9 EE instances (OSGI_Minimum_*, JRE_1_1, J2SE_*)
+		// that come before JavaSE_9 in the ordinal sequence
 		int version = ordinal - 5;
 		this.versionLabel = Integer.toString(version);
 		this.eeName = "JavaSE-" + versionLabel;
@@ -176,9 +179,18 @@ public final class EE implements Comparable<EE> {
 		}
 		
 		// Create a dynamic EE instance for newer Java versions
-		// Find the highest known EE to use as a base for ordinal calculation
-		int maxOrdinal = KNOWN_EES[KNOWN_EES.length - 2].ordinal; // -2 to skip UNKNOWN
-		int newOrdinal = maxOrdinal + (release - JavaSE_30.release);
+		// Find the highest known EE (excluding UNKNOWN) to use as a base for ordinal calculation
+		EE highestKnown = null;
+		int maxRelease = 0;
+		for (int i = 0; i < KNOWN_EES.length - 1; i++) { // -1 to skip UNKNOWN
+			EE ee = KNOWN_EES[i];
+			if (ee.release > maxRelease) {
+				maxRelease = ee.release;
+				highestKnown = ee;
+			}
+		}
+		
+		int newOrdinal = highestKnown.ordinal + (release - highestKnown.release);
 		String name = "JavaSE_" + release;
 		EE newEE = new EE(newOrdinal, name, release);
 		

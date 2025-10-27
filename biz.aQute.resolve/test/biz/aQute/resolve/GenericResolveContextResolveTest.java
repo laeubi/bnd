@@ -160,10 +160,9 @@ public class GenericResolveContextResolveTest {
 
 					if (ee == EE.JavaSE_1_8) {
 						assertThat(resources).contains(v1_8);
-					} else if (ee == EE.JavaSE_9 || ee == EE.JavaSE_10 || ee == EE.JavaSE_11) {
+					} else if (Set.of(EE.JavaSE_9, EE.JavaSE_10, EE.JavaSE_11).contains(ee)) {
 						assertThat(resources).contains(v9);
-					} else if (ee == EE.JavaSE_12 || ee == EE.JavaSE_13 || ee == EE.JavaSE_14 || 
-							   ee == EE.JavaSE_15 || ee == EE.JavaSE_16) {
+					} else if (Set.of(EE.JavaSE_12, EE.JavaSE_13, EE.JavaSE_14, EE.JavaSE_15, EE.JavaSE_16).contains(ee)) {
 						assertThat(resources).contains(v12);
 					} else {
 						assertThat(resources).contains(v17);
