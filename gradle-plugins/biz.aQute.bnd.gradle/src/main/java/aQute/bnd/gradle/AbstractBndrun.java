@@ -289,7 +289,10 @@ public abstract class AbstractBndrun extends DefaultTask {
 		} else {
 			bundles(mainSourceSet.getRuntimeClasspath());
 			bundles(artifacts);
-			properties.convention(Maps.of("project", "__convention__"));
+			// For Gradle 9 compatibility, we no longer provide Project/Task access by default.
+			// Users must explicitly set needed properties to use them in bnd instructions.
+			// See: https://github.com/bndtools/bnd/tree/master/gradle-plugins#gradle-configuration-cache-support
+			properties.convention(Collections.emptyMap());
 		}
 	}
 
@@ -342,8 +345,6 @@ public abstract class AbstractBndrun extends DefaultTask {
 			if (workspace.isEmpty()) {
 				Properties gradleProperties = new BeanProperties(runWorkspace.getProperties());
 				gradleProperties.putAll(unwrap(getProperties()));
-				gradleProperties.computeIfPresent("project", (k, v) -> "__convention__".equals(v) ? getProject() : v);
-				gradleProperties.putIfAbsent("task", this);
 				run.setParent(new Processor(runWorkspace, gradleProperties, false));
 				run.clear();
 				run.forceRefresh(); // setBase must be called after forceRefresh

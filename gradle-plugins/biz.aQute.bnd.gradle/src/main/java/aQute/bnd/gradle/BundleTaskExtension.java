@@ -211,8 +211,11 @@ public class BundleTaskExtension {
 		SourceSet mainSourceSet = sourceSets(project).getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 		setSourceSet(mainSourceSet);
 		classpath(jarLibraryElements(task, mainSourceSet.getCompileClasspathConfigurationName()));
+		// For Gradle 9 compatibility, we no longer provide Project/Task access by default.
+		// Users must explicitly set needed properties to use them in bnd instructions.
+		// See: https://github.com/bndtools/bnd/tree/master/gradle-plugins#gradle-configuration-cache-support
 		properties = objects.mapProperty(String.class, Object.class)
-			.convention(Maps.of("project", "__convention__"));
+			.convention(Collections.emptyMap());
 		defaultBundleSymbolicName = task.getArchiveBaseName()
 			.zip(task.getArchiveClassifier(), (baseName, classifier) -> classifier.isEmpty() ? baseName : baseName + "-" + classifier);
 		defaultBundleVersion = task.getArchiveVersion()
@@ -403,9 +406,6 @@ public class BundleTaskExtension {
 				// create Builder
 				Properties gradleProperties = new BeanProperties();
 				gradleProperties.putAll(unwrap(getProperties()));
-				gradleProperties.computeIfPresent("project",
-					(k, v) -> "__convention__".equals(v) ? getTask().getProject() : v);
-				gradleProperties.putIfAbsent("task", getTask());
 				try (Builder builder = new Builder(new Processor(gradleProperties, false))) {
 					// load bnd properties
 					File temporaryBndFile = File.createTempFile("bnd", ".bnd", getTask().getTemporaryDir());
