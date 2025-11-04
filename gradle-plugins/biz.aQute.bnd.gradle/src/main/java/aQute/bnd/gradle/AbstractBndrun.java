@@ -289,8 +289,64 @@ public abstract class AbstractBndrun extends DefaultTask {
 		} else {
 			bundles(mainSourceSet.getRuntimeClasspath());
 			bundles(artifacts);
-			properties.convention(Maps.of("project", "__convention__"));
+			// For Gradle 9 compatibility, we capture project properties at configuration time
+			// instead of accessing the Project object at execution time.
+			// Users can override this by explicitly setting the properties property.
+			properties.convention(project.provider(() -> {
+				Map<String, Object> projectProps = new java.util.LinkedHashMap<>();
+				// Capture commonly used project properties
+				projectProps.put("name", project.getName());
+				projectProps.put("group", project.getGroup());
+				projectProps.put("version", project.getVersion());
+				if (project.getDescription() != null) {
+					projectProps.put("description", project.getDescription());
+				}
+				projectProps.put("dir", project.getProjectDir());
+				projectProps.put("buildDir", project.getLayout().getBuildDirectory().get().getAsFile());
+				// Capture all project ext properties
+				project.getProperties().forEach((key, value) -> {
+					// Only capture serializable values that won't break configuration cache
+					if (value != null && isConfigurationCacheCompatible(value)) {
+						projectProps.put(key, value);
+					}
+				});
+				// Create a PropertyCapture wrapper that BeanProperties can introspect
+				Map<String, Object> props = new java.util.LinkedHashMap<>();
+				props.put("project", new PropertyCapture(projectProps));
+				return props;
+			}));
 		}
+	}
+
+	/**
+	 * Check if a value is compatible with Gradle's configuration cache.
+	 * This is a conservative check that allows basic types but excludes
+	 * Gradle Project/Task objects and other non-serializable types.
+	 */
+	private static boolean isConfigurationCacheCompatible(Object value) {
+		if (value == null) {
+			return true;
+		}
+		// Allow primitive types and their wrappers
+		Class<?> clazz = value.getClass();
+		if (clazz.isPrimitive() || value instanceof String || value instanceof Number
+			|| value instanceof Boolean || value instanceof File) {
+			return true;
+		}
+		// Exclude Gradle Project and Task objects
+		if (value instanceof org.gradle.api.Project || value instanceof org.gradle.api.Task) {
+			return false;
+		}
+		// Exclude Gradle Property and Provider types (they contain non-serializable state)
+		String className = clazz.getName();
+		if (className.startsWith("org.gradle.api.provider.") ||
+			className.startsWith("org.gradle.api.file.") ||
+			className.contains("Property") ||
+			className.contains("Provider")) {
+			return false;
+		}
+		// Be conservative - only allow known-good types
+		return false;
 	}
 
 	/**
@@ -342,8 +398,6 @@ public abstract class AbstractBndrun extends DefaultTask {
 			if (workspace.isEmpty()) {
 				Properties gradleProperties = new BeanProperties(runWorkspace.getProperties());
 				gradleProperties.putAll(unwrap(getProperties()));
-				gradleProperties.computeIfPresent("project", (k, v) -> "__convention__".equals(v) ? getProject() : v);
-				gradleProperties.putIfAbsent("task", this);
 				run.setParent(new Processor(runWorkspace, gradleProperties, false));
 				run.clear();
 				run.forceRefresh(); // setBase must be called after forceRefresh

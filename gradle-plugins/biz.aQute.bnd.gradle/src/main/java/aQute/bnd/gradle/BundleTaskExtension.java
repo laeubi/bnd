@@ -211,8 +211,51 @@ public class BundleTaskExtension {
 		SourceSet mainSourceSet = sourceSets(project).getByName(SourceSet.MAIN_SOURCE_SET_NAME);
 		setSourceSet(mainSourceSet);
 		classpath(jarLibraryElements(task, mainSourceSet.getCompileClasspathConfigurationName()));
+		// For Gradle 9 compatibility, we capture project and task properties at configuration time
+		// instead of accessing the Project object at execution time.
+		// Users can override this by explicitly setting the properties property.
 		properties = objects.mapProperty(String.class, Object.class)
-			.convention(Maps.of("project", "__convention__"));
+			.convention(project.provider(() -> {
+				Map<String, Object> projectProps = new java.util.LinkedHashMap<>();
+				// Capture commonly used project properties
+				projectProps.put("name", project.getName());
+				projectProps.put("group", project.getGroup());
+				projectProps.put("version", project.getVersion());
+				if (project.getDescription() != null) {
+					projectProps.put("description", project.getDescription());
+				}
+				projectProps.put("dir", project.getProjectDir());
+				projectProps.put("buildDir", project.getLayout().getBuildDirectory().get().getAsFile());
+				// Capture all project ext properties
+				project.getProperties().forEach((key, value) -> {
+					// Only capture serializable values that won't break configuration cache
+					if (value != null && isConfigurationCacheCompatible(value)) {
+						projectProps.put(key, value);
+					}
+				});
+				
+				Map<String, Object> taskProps = new java.util.LinkedHashMap<>();
+				// Capture commonly used task properties
+				taskProps.put("name", task.getName());
+				taskProps.put("archiveBaseName", task.getArchiveBaseName().get());
+				taskProps.put("archiveClassifier", task.getArchiveClassifier().getOrElse(""));
+				taskProps.put("archiveVersion", task.getArchiveVersion().getOrElse(""));
+				taskProps.put("archiveFileName", task.getArchiveFileName().get());
+				// Allow task to access project properties via ${task.project.xxx}
+				taskProps.put("project", new PropertyCapture(projectProps));
+				// Capture task ext properties
+				task.getExtensions().getExtraProperties().getProperties().forEach((key, value) -> {
+					if (value != null && isConfigurationCacheCompatible(value)) {
+						taskProps.put(key, value);
+					}
+				});
+				
+				// Create PropertyCapture wrappers that BeanProperties can introspect
+				Map<String, Object> props = new java.util.LinkedHashMap<>();
+				props.put("project", new PropertyCapture(projectProps));
+				props.put("task", new PropertyCapture(taskProps));
+				return props;
+			}));
 		defaultBundleSymbolicName = task.getArchiveBaseName()
 			.zip(task.getArchiveClassifier(), (baseName, classifier) -> classifier.isEmpty() ? baseName : baseName + "-" + classifier);
 		defaultBundleVersion = task.getArchiveVersion()
@@ -403,9 +446,6 @@ public class BundleTaskExtension {
 				// create Builder
 				Properties gradleProperties = new BeanProperties();
 				gradleProperties.putAll(unwrap(getProperties()));
-				gradleProperties.computeIfPresent("project",
-					(k, v) -> "__convention__".equals(v) ? getTask().getProject() : v);
-				gradleProperties.putIfAbsent("task", getTask());
 				try (Builder builder = new Builder(new Processor(gradleProperties, false))) {
 					// load bnd properties
 					File temporaryBndFile = File.createTempFile("bnd", ".bnd", getTask().getTemporaryDir());
@@ -582,6 +622,37 @@ public class BundleTaskExtension {
 			return Objects.isNull(header) || header.trim()
 				.isEmpty() || Constants.EMPTY_HEADER.equals(header);
 		}
+	}
+
+	/**
+	 * Check if a value is compatible with Gradle's configuration cache.
+	 * This is a conservative check that allows basic types but excludes
+	 * Gradle Project/Task objects and other non-serializable types.
+	 */
+	private static boolean isConfigurationCacheCompatible(Object value) {
+		if (value == null) {
+			return true;
+		}
+		// Allow primitive types and their wrappers
+		Class<?> clazz = value.getClass();
+		if (clazz.isPrimitive() || value instanceof String || value instanceof Number
+			|| value instanceof Boolean || value instanceof File) {
+			return true;
+		}
+		// Exclude Gradle Project and Task objects
+		if (value instanceof org.gradle.api.Project || value instanceof org.gradle.api.Task) {
+			return false;
+		}
+		// Exclude Gradle Property and Provider types (they contain non-serializable state)
+		String className = clazz.getName();
+		if (className.startsWith("org.gradle.api.provider.") ||
+			className.startsWith("org.gradle.api.file.") ||
+			className.contains("Property") ||
+			className.contains("Provider")) {
+			return false;
+		}
+		// Be conservative - only allow known-good types
+		return false;
 	}
 
 	static final class AttributesMap extends AbstractMap<String, Object> {
