@@ -616,7 +616,7 @@ public class Syntax implements Constants {
 			"Do not calculate the " + USES_DIRECTIVE + " directive on package exports or on capabilities.",
 			NOUSES + "=true", "true,false", Verifier.TRUEORFALSEPATTERN),
 		new Syntax(NOCLASSFORNAME, "Do not calculate " + IMPORT_PACKAGE
-			+ " references for 'Class.forName(\"some.Class\")' usage found in method bodies during class processing.",
+			+ " references for 'Class.forName(\"some.Class\")' and 'Proxy.newProxyInstance' usage found in method bodies during class processing.",
 			NOCLASSFORNAME + "=true", "true,false", Verifier.TRUEORFALSEPATTERN),
 		new Syntax(NOIMPORTJAVA, "Do not calculate " + IMPORT_PACKAGE + " references for java.* packages.",
 			NOIMPORTJAVA + "=true", "true,false", Verifier.TRUEORFALSEPATTERN),
