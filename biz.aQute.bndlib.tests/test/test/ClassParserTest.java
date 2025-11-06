@@ -497,4 +497,26 @@ public class ClassParserTest {
 		c.parseClassFile(getClass().getResourceAsStream("classforname/ClassForName.class"));
 		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("javax.swing"));
 	}
+
+	@Test
+	public void testProxyNewProxyInstance() throws Exception {
+		a.setProperty("-noclassforname", "false");
+		Clazz c = new Clazz(a, "test/proxy", null);
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyTest.class"));
+		// TestInterface.getPath() returns Path which is in java.nio.file package
+		// TestInterface.getList() returns List which is in java.util package
+		assertThat(c.getReferred()).contains(a.getPackageRef("java.nio.file"));
+		assertThat(c.getReferred()).contains(a.getPackageRef("java.util"));
+	}
+
+	@Test
+	public void testNoProxyNewProxyInstance() throws Exception {
+		a.setProperty("-noclassforname", "true");
+		Clazz c = new Clazz(a, "test/proxy", null);
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyTest.class"));
+		// With -noclassforname, proxy detection should also be disabled
+		// Note: java.util might still be referenced directly in the code
+		// but java.nio.file should not be referenced
+		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
+	}
 }
