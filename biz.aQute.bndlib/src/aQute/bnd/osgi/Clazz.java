@@ -1263,7 +1263,7 @@ public class Clazz {
 		// Note: We only track interfaces when the Class[] array is created inline
 		// (anewarray + ldc + aastore pattern). We cannot reliably detect interfaces
 		// when the array comes from a field, variable, or parameter.
-		List<Integer> proxyInterfaces = new ArrayList<>();
+		List<Integer> proxyInterfaces = null; // Lazy initialization
 		boolean inProxyArray = false; // Track if we're building a Class[] for proxy
 		while (code.hasRemaining()) {
 			int instruction = Byte.toUnsignedInt(code.get());
@@ -1286,7 +1286,11 @@ public class Clazz {
 						String className = constantPool.className(class_index);
 						if ("java/lang/Class".equals(className)) {
 							inProxyArray = true;
-							proxyInterfaces.clear();
+							if (proxyInterfaces == null) {
+								proxyInterfaces = new ArrayList<>();
+							} else {
+								proxyInterfaces.clear();
+							}
 						}
 					}
 					lastReference = -1;
@@ -1329,7 +1333,7 @@ public class Clazz {
 						}
 					}
 					// Handle Proxy.newProxyInstance - process collected proxy interfaces
-					if (method_ref_index == newProxyInstance && !proxyInterfaces.isEmpty()) {
+					if (method_ref_index == newProxyInstance && proxyInterfaces != null && !proxyInterfaces.isEmpty()) {
 						for (int classIndex : proxyInterfaces) {
 							processProxyInterface(classIndex);
 						}
