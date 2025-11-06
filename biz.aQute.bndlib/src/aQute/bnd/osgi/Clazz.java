@@ -926,6 +926,11 @@ public class Clazz {
 		// ...
 		// invokestatic Proxy.newProxyInstance(ClassLoader, Class[], InvocationHandler)
 		//
+		// Note: We only detect interfaces when the Class[] array is created inline
+		// (the anewarray pattern above). We cannot detect interfaces when the array
+		// comes from a field, local variable, or parameter, as we cannot reliably
+		// determine the array contents from bytecode alone in those cases.
+		//
 		newProxyInstance = analyzer.is(Constants.NOCLASSFORNAME) ? -1
 			: findMethodReference("java/lang/reflect/Proxy", "newProxyInstance",
 				"(Ljava/lang/ClassLoader;[Ljava/lang/Class;Ljava/lang/reflect/InvocationHandler;)Ljava/lang/Object;");
@@ -1254,7 +1259,11 @@ public class Clazz {
 		ByteBuffer code = attribute.code.duplicate();
 		code.rewind();
 		int lastReference = -1;
-		List<Integer> proxyInterfaces = new ArrayList<>(); // Track interface class constants for Proxy.newProxyInstance
+		// Track interface class constants for Proxy.newProxyInstance
+		// Note: We only track interfaces when the Class[] array is created inline
+		// (anewarray + ldc + aastore pattern). We cannot reliably detect interfaces
+		// when the array comes from a field, variable, or parameter.
+		List<Integer> proxyInterfaces = new ArrayList<>();
 		boolean inProxyArray = false; // Track if we're building a Class[] for proxy
 		while (code.hasRemaining()) {
 			int instruction = Byte.toUnsignedInt(code.get());
@@ -1297,6 +1306,8 @@ public class Clazz {
 					int class_index = Short.toUnsignedInt(code.getShort());
 					classConstRef(class_index);
 					lastReference = -1;
+					// Reset proxy tracking if we see unrelated instructions
+					inProxyArray = false;
 					break;
 				}
 				case OpCodes.multianewarray : {

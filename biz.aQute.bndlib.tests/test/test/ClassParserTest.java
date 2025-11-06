@@ -519,4 +519,15 @@ public class ClassParserTest {
 		// but java.nio.file should not be referenced
 		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
 	}
+
+	@Test
+	public void testProxyFromFieldNotDetected() throws Exception {
+		a.setProperty("-noclassforname", "false");
+		Clazz c = new Clazz(a, "test/proxy", null);
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyFromField.class"));
+		// When the Class[] array comes from a field, we cannot reliably detect
+		// which interfaces are being proxied, so we should NOT add java.nio.file
+		// The array is created in the static initializer, not inline with newProxyInstance
+		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
+	}
 }
