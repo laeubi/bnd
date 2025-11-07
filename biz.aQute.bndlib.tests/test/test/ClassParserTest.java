@@ -501,55 +501,57 @@ public class ClassParserTest {
 	@Test
 	public void testProxyNewProxyInstance() throws Exception {
 		a.setProperty("-noclassforname", "false");
+		a.addClasspath(IO.getFile("jar/javax.servlet-api-4.0.1.jar"));
 		Clazz c = new Clazz(a, "test/proxy", null);
-		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyTest.class"));
-		// TestInterface.getPath() returns Path which is in java.nio.file package
-		// TestInterface.getList() returns List which is in java.util package
-		assertThat(c.getReferred()).contains(a.getPackageRef("java.nio.file"));
-		assertThat(c.getReferred()).contains(a.getPackageRef("java.util"));
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyTest.jclass"));
+		// ServletContext has methods that reference types from javax.servlet.descriptor
+		// With proxy detection enabled, we should see javax.servlet.descriptor imported
+		assertThat(c.getReferred()).contains(a.getPackageRef("javax.servlet.descriptor"));
 	}
 
 	@Test
 	public void testNoProxyNewProxyInstance() throws Exception {
 		a.setProperty("-noclassforname", "true");
+		a.addClasspath(IO.getFile("jar/javax.servlet-api-4.0.1.jar"));
 		Clazz c = new Clazz(a, "test/proxy", null);
-		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyTest.class"));
-		// With -noclassforname, proxy detection should also be disabled
-		// Note: java.util might still be referenced directly in the code
-		// but java.nio.file should not be referenced
-		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyTest.jclass"));
+		// With -noclassforname=true, proxy detection should be disabled
+		// We should NOT see javax.servlet.descriptor imported
+		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("javax.servlet.descriptor"));
 	}
 
 	@Test
 	public void testProxyFromFieldNotDetected() throws Exception {
 		a.setProperty("-noclassforname", "false");
+		a.addClasspath(IO.getFile("jar/javax.servlet-api-4.0.1.jar"));
 		Clazz c = new Clazz(a, "test/proxy", null);
-		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyFromField.class"));
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyFromField.jclass"));
 		// When the Class[] array comes from a field, we cannot reliably detect
-		// which interfaces are being proxied, so we should NOT add java.nio.file
+		// which interfaces are being proxied, so we should NOT add javax.servlet.descriptor
 		// The array is created in the static initializer, not inline with newProxyInstance
-		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
+		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("javax.servlet.descriptor"));
 	}
 
 	@Test
 	public void testProxyFalsePositiveFixed() throws Exception {
 		a.setProperty("-noclassforname", "false");
+		a.addClasspath(IO.getFile("jar/javax.servlet-api-4.0.1.jar"));
 		Clazz c = new Clazz(a, "test/proxy", null);
-		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyFalsePositive.class"));
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyFalsePositive.jclass"));
 		// This test verifies that a false positive has been fixed:
-		// - First, a Class[] array with TestInterface is created (triggers anewarray + ldc + aastore)
+		// - First, a Class[] array with ServletContext is created (triggers anewarray + ldc + aastore)
 		// - Then the array is stored via astore instruction
 		// - Later, newProxyInstance is called with an array from a field (Runnable)
 		// 
-		// Before fix: TestInterface would be incorrectly processed because inProxyArray
-		// remained true and proxyInterfaces still contained TestInterface
+		// Before fix: ServletContext would be incorrectly processed because inProxyArray
+		// remained true and proxyInterfaces still contained ServletContext
 		// 
-		// After fix: TestInterface is NOT detected because the astore instruction
+		// After fix: ServletContext is NOT detected because the astore instruction
 		// resets inProxyArray and clears proxyInterfaces (store and other invoke 
 		// instructions break the inline array pattern)
 		//
-		// Note: java.util might still be referenced directly in the code (for Supplier)
-		// but java.nio.file should not be referenced (it's only in TestInterface methods)
-		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
+		// We should NOT see javax.servlet.descriptor imported because ServletContext
+		// is not actually being proxied (it's just in an unrelated array)
+		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("javax.servlet.descriptor"));
 	}
 }

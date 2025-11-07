@@ -1298,7 +1298,7 @@ public class Clazz {
 				}
 				case OpCodes.aastore : {
 					// Store into array - if we're in proxy array building and have a class reference, collect it
-					if (inProxyArray && lastReference != -1 && constantPool.tag(lastReference) == CONSTANT_Class) {
+					if (inProxyArray && proxyInterfaces != null && lastReference != -1 && constantPool.tag(lastReference) == CONSTANT_Class) {
 						proxyInterfaces.add(lastReference);
 					}
 					lastReference = -1;
