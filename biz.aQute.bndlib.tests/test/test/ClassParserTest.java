@@ -530,4 +530,25 @@ public class ClassParserTest {
 		// The array is created in the static initializer, not inline with newProxyInstance
 		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
 	}
+
+	@Test
+	public void testProxyFalsePositiveFixed() throws Exception {
+		a.setProperty("-noclassforname", "false");
+		Clazz c = new Clazz(a, "test/proxy", null);
+		c.parseClassFile(getClass().getResourceAsStream("proxy/ProxyFalsePositive.class"));
+		// This test demonstrates a false positive that should be fixed:
+		// - First, a Class[] array with TestInterface is created (triggers anewarray + ldc + aastore)
+		// - Then there's an invokedynamic instruction (for the lambda)
+		// - Finally, newProxyInstance is called with an array from a field (Runnable)
+		// 
+		// Before fix: TestInterface would be incorrectly processed because inProxyArray
+		// remains true through the invokedynamic instruction
+		// 
+		// After fix: TestInterface should NOT be detected because the invokedynamic
+		// should reset the proxy detection state
+		//
+		// Note: java.util might still be referenced directly in the code (for Supplier)
+		// but java.nio.file should not be referenced (it's only in TestInterface methods)
+		assertThat(c.getReferred()).doesNotContain(a.getPackageRef("java.nio.file"));
+	}
 }

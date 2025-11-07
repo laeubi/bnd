@@ -1343,6 +1343,38 @@ public class Clazz {
 					lastReference = -1;
 					break;
 				}
+				case OpCodes.astore :
+				case OpCodes.astore_0 :
+				case OpCodes.astore_1 :
+				case OpCodes.astore_2 :
+				case OpCodes.astore_3 :
+				case OpCodes.putstatic :
+				case OpCodes.putfield : {
+					// These instructions store/pop values and break the inline array pattern
+					// If we were building a proxy array, it's been stored away and won't be
+					// passed directly to newProxyInstance
+					code.position(code.position() + OpCodes.OFFSETS[instruction]);
+					lastReference = -1;
+					inProxyArray = false;
+					if (proxyInterfaces != null) {
+						proxyInterfaces.clear();
+					}
+					break;
+				}
+				case OpCodes.invokespecial :
+				case OpCodes.invokevirtual :
+				case OpCodes.invokeinterface : {
+					// These invoke instructions (except invokedynamic) break the pattern
+					// Note: invokedynamic is allowed because it's used for the InvocationHandler lambda
+					// which is a parameter to newProxyInstance
+					code.position(code.position() + OpCodes.OFFSETS[instruction]);
+					lastReference = -1;
+					inProxyArray = false;
+					if (proxyInterfaces != null) {
+						proxyInterfaces.clear();
+					}
+					break;
+				}
 				case OpCodes.wide : {
 					int opcode = Byte.toUnsignedInt(code.get());
 					code.position(code.position() + (opcode == OpCodes.iinc ? 4 : 2));
