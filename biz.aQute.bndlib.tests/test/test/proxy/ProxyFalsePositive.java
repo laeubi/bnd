@@ -4,11 +4,13 @@ import java.lang.reflect.Proxy;
 import java.util.function.Supplier;
 
 /**
- * Test case to demonstrate a potential false positive in proxy detection.
+ * Test case to demonstrate a false positive in proxy detection that has been fixed.
  * This class creates a Class[] array for a purpose other than Proxy.newProxyInstance,
  * followed by a lambda (invokedynamic), and then uses newProxyInstance with
- * an array from a field. The bug is that TestInterface might get incorrectly
- * associated with the Runnable proxy.
+ * an array from a field.
+ * 
+ * Before the fix: TestInterface would be incorrectly associated with the Runnable proxy
+ * After the fix: The astore instruction resets the proxy tracking, preventing the false positive
  */
 public class ProxyFalsePositive {
 
@@ -20,14 +22,14 @@ public class ProxyFalsePositive {
 		// This sets inProxyArray=true and adds TestInterface to proxyInterfaces
 		Class<?>[] unrelatedClasses = new Class<?>[] { TestInterface.class };
 		
-		// Use a lambda that gets compiled to invokedynamic
-		// This should reset inProxyArray but currently doesn't
+		// The astore instruction (storing the array) resets inProxyArray and clears proxyInterfaces
+		// This prevents the false positive from occurring
 		Supplier<String> lambda = () -> "test";
 		lambda.get();
 		
 		// Now create a proxy using an array from a field (getstatic)
-		// The bug: if inProxyArray is still true and proxyInterfaces still has TestInterface,
-		// it will incorrectly process TestInterface's methods even though the proxy is for Runnable
+		// After the fix: TestInterface is not incorrectly associated with this proxy
+		// because the proxy tracking was reset when the array was stored
 		Runnable proxy = (Runnable) Proxy.newProxyInstance(
 			ProxyFalsePositive.class.getClassLoader(),
 			RUNNABLE_ARRAY,  // From field - not detected by inline pattern
