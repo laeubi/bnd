@@ -20,6 +20,7 @@ import java.util.function.Predicate;
 import java.util.function.Supplier;
 import java.util.jar.Manifest;
 import java.util.regex.Pattern;
+import java.util.zip.ZipException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -229,6 +230,10 @@ public class ProjectBuilder extends Builder {
 							try (Jar jar = new Jar(file)) {
 								fillDependencies(dependencies, jar, containerAttributes);
 							}
+							catch (ZipException e) {
+								// not a jar file (can happen if a
+								// ${repo}-reference a non-jar (.dylib, .so)
+							}
 						}
 					}
 				}
@@ -284,6 +289,10 @@ public class ProjectBuilder extends Builder {
 			dependencies.add(key.toString(), attrs);
 		} else {
 			// fall back to pom.properties in jar
+			if (jar == null) {
+				return;
+			}
+
 			jar.getResources(pomPropertiesFilter)
 				.forEachOrdered(r -> {
 					UTF8Properties pomProperties = new UTF8Properties();
@@ -549,9 +558,18 @@ public class ProjectBuilder extends Builder {
 
 		if (versions.isEmpty()) {
 			// We have a repo
-			// Baselining 0.x is uninteresting
+			// Baselining 0.x is uninteresting (unless baselineincludezeromajor is enabled)
 			// x.0.0 is a new major version so maybe there is no baseline
-			if ((version.getMajor() > 0) && ((version.getMinor() > 0) || (version.getMicro() > 0))) {
+
+			// Check if baselineincludezeromajor is enabled in diffpackages
+			boolean includeZeroMajor = isIncludeZeroMajorEnabled();
+
+			boolean shouldWarn = (version.getMajor() > 0) && ((version.getMinor() > 0) || (version.getMicro() > 0));
+			if (!shouldWarn && includeZeroMajor && version.getMajor() == 0 && (version.getMinor() > 0 || version.getMicro() > 0)) {
+				shouldWarn = true;
+			}
+
+			if (shouldWarn) {
 				warning(
 					"There is no baseline for %s in the baseline repo %s. The build is for version %s, which is higher than %s which suggests that there should be a prior version.",
 					getBsn(), repo, version.getWithoutQualifier(), new Version(version.getMajor()));
@@ -638,6 +656,10 @@ public class ProjectBuilder extends Builder {
 
 		// Ignore, nothing matched
 		return null;
+	}
+
+	private boolean isIncludeZeroMajorEnabled() {
+		return project.is(Constants.BASELINEINCLUDEZEROMAJOR);
 	}
 
 	/**
@@ -826,7 +848,26 @@ public class ProjectBuilder extends Builder {
 						run.setProperty(BUNDLE_VERSION, attrs.get(Constants.EXPORT_VERSION));
 					}
 
+					if (run.getProperty(Constants.POM) == null) {
+						String pom = getProperty(Constants.POM);
+						if (pom != null) {
+							run.setProperty(Constants.POM, pom);
+						}
+					}
+
 					attrs.forEach(run::setProperty);
+
+					String runBundleVersion = run.getProperty(BUNDLE_VERSION);
+					String snapshot = run.getProperty(Constants.SNAPSHOT);
+					if ((runBundleVersion != null) && (snapshot != null)) {
+						if (snapshot.isEmpty()) {
+							runBundleVersion = Version.parseVersion(runBundleVersion)
+								.toStringWithoutQualifier();
+						} else if (runBundleVersion.contains("SNAPSHOT")) {
+							runBundleVersion = Builder.doSnapshot(runBundleVersion, snapshot);
+						}
+						run.setProperty(BUNDLE_VERSION, runBundleVersion);
+					}
 
 					Entry<String, Resource> export = run.export(null, attrs);
 					getInfo(run);

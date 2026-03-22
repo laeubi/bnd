@@ -1217,11 +1217,16 @@ public class Project extends Processor {
 		release(new ReleaseParameter(name, test, false));
 	}
 
+	@Deprecated(forRemoval = true, since = "7.3.0")
 	public static class ReleaseParameter {
+		@Deprecated
 		public String	name;
+		@Deprecated
 		public boolean	test;
+		@Deprecated
 		public boolean	lastBundleInWorkspace;
 
+		@Deprecated(forRemoval = true, since = "7.3.0")
 		public ReleaseParameter(String name, boolean test, boolean lastBundleInWorkspace) {
 			this.name = name;
 			this.test = test;
@@ -1229,6 +1234,10 @@ public class Project extends Processor {
 		}
 	}
 
+	/**
+	 * Do not use this method.
+	 */
+	@Deprecated(forRemoval = true, since = "7.3.0")
 	public void release(ReleaseParameter relParam) throws Exception, IOException {
 		List<RepositoryPlugin> releaseRepos = getReleaseRepos(relParam.name);
 		if (releaseRepos.isEmpty()) {
@@ -1498,7 +1507,7 @@ public class Project extends Processor {
 		}
 		Container container;
 		if (f.getName()
-			.endsWith("lib"))
+			.endsWith(".lib"))
 			container = new Container(this, bsn, range, Container.TYPE.LIBRARY, f, null, attrs, db);
 		else
 			container = new Container(this, bsn, range, Container.TYPE.REPO, f, null, attrs, db);
@@ -2908,7 +2917,7 @@ public class Project extends Processor {
 			for (Builder b : pb.getSubBuilders()) {
 				if (b.getBsn()
 					.equals(bsn)) {
-					String version = b.getVersion();
+					String version = getVersion(bsn).toString();
 					Container c = new Container(this, bsn, version, Container.TYPE.PROJECT, getOutputFile(bsn, version),
 						null, attrs, null);
 					return c;
@@ -3231,13 +3240,64 @@ public class Project extends Processor {
 		StringBuilder stdout = new StringBuilder();
 		StringBuilder stderr = new StringBuilder();
 
-		int n = javac.execute(stdout, stderr);
-		logger.debug("javac stdout: {}", stdout);
-		logger.debug("javac stderr: {}", stderr);
-
-		if (n != 0) {
-			error("javac failed %s", stderr);
+		// On Windows, use argument file to avoid command line length limitations
+		File argFile = null;
+		if (IO.isWindows()) {
+			// Estimate command line length including spaces between arguments
+			// and potential quoting overhead
+			int cmdLineLength = javac.getArguments()
+				.stream()
+				.mapToInt(arg -> arg.length() + 3) // +1 for space, +2 for potential quotes
+				.sum();
+			
+			// Windows command line limit is ~8191 characters
+			// Use arg file if we're getting close (allow some margin)
+			if (cmdLineLength > 6000) {
+				argFile = createJavacArgumentFile(javac);
+				// Create new command with just javac executable and @argfile
+				Command newJavac = new Command();
+				newJavac.add(javac.getArguments().get(0)); // javac executable
+				newJavac.add("@" + argFile.getAbsolutePath());
+				javac = newJavac;
+				logger.debug("Using argument file for javac: {}", argFile);
+			}
 		}
+
+		try {
+			int n = javac.execute(stdout, stderr);
+			logger.debug("javac stdout: {}", stdout);
+			logger.debug("javac stderr: {}", stderr);
+
+			if (n != 0) {
+				error("javac failed %s", stderr);
+			}
+		} finally {
+			// Clean up argument file
+			if (argFile != null && argFile.exists()) {
+				IO.delete(argFile);
+			}
+		}
+	}
+
+	private File createJavacArgumentFile(Command javac) throws Exception {
+		File argFile = IO.createTempFile(getTarget(), "javac-args", ".txt");
+		List<String> args = javac.getArguments();
+		
+		try (PrintWriter writer = new PrintWriter(argFile, "UTF-8")) {
+			// Skip the first argument (javac executable path)
+			for (int i = 1; i < args.size(); i++) {
+				String arg = args.get(i);
+				// Quote arguments that contain spaces or special characters
+				// This follows javac argument file specification
+				if (arg.contains(" ") || arg.contains("\t")) {
+					// Escape backslashes and quotes within the quoted string
+					arg = "\"" + arg.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
+				}
+				writer.println(arg);
+			}
+		}
+		
+		return argFile;
 	}
 
 	private Command getCommonJavac(boolean test) throws Exception {

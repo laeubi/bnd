@@ -1,9 +1,10 @@
 ---
-layout: default
+layout: bnd
 title: -resolve (manual|auto|beforelaunch|batch|cache)
 class: Workspace
 summary: |
    Defines when/how resolving is done to calculate the -runbundles
+parent: Instruction Reference
 note: AUTO-GENERATED FILE - DO NOT EDIT. You can add manual content via same filename in ext folder. 
 ---
 

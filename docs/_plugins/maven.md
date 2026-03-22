@@ -1,9 +1,9 @@
 ---
 title: Maven Bnd Repository Plugin
-layout: default
+layout: bnd
 summary: A plugin to use and release to Maven repositories
+parent: Plugins
 ---
-
 The Maven Bnd Repository / MavenBndRepository plugin provides a full interface to the Maven local repository in `~/.m2/repository` and remote repositories like [Nexus] or [Artifactory]. And it provides of course full access to Maven Central. It implements the standard bnd Repository Plugin and can provide an OSGi Repository for resolving.
 
 ### Maven Central
@@ -33,7 +33,7 @@ A configuration can look like this:
 			index=${.}/release.maven; \
 			name="Release"
 
-#### Release to Maven Central via Sonatype Central Portal
+#### Release to Maven Central via Sonatype Central Portal (deprecated for removal in 7.3.0)
 
 Maven Central now offers publishing through the [Sonatype Central Portal](https://central.sonatype.com/), which provides a streamlined publishing process. The MavenBndRepository plugin supports this with the `sonatypeMode` configuration property.
 
@@ -116,6 +116,110 @@ This configuration disables Sonatype Portal integration:
 	        name         = "Local Release"; \
 	        sonatypeMode = none
 
+#### Standalone Sonatype Upload (recommended for CI/CD)
+
+For CI/CD pipelines, the recommended approach is to separate building and Sonatype deployment
+using the standalone upload scripts. This avoids the "last artifact" problem inherent in the
+bnd-internal mechanism and works across mixed build systems (bnd workspace, Gradle plugins, Maven plugins).
+
+The workflow is:
+
+1. All builds publish artifacts to a shared local directory (e.g. `dist/bundles`)
+2. A standalone script uploads the entire directory to Sonatype as a single deployment
+3. A status check script verifies the deployment and optionally cleans up
+
+##### Workspace Fragments
+
+Use the provided workspace fragment for configuration:
+
+* `cnf/ext/maven-gav.bnd` – Maven GAV coordinates, Bundle-Vendor, Bundle-Developers, GPG signing
+
+##### Release Upload
+
+Upload release artifacts to Sonatype Central Portal:
+
+	SONATYPE_BEARER=<token> \
+	  ./.github/scripts/sonatype-upload.sh [--publishing-type AUTOMATIC] dist/bundles
+
+GPG signing is handled by the bnd build (via `-maven-release` in `cnf/ext/maven-gav.bnd`)
+and validated by Sonatype during deployment processing.
+
+The script:
+1. Creates a ZIP bundle from the release directory (using `jar cMf`)
+2. Uploads via `POST /api/v1/publisher/upload`
+3. Stores the deployment ID in `<release-dir>_DEPLOYMENTID.txt`
+
+##### Snapshot Upload
+
+Deploy snapshot artifacts to the Sonatype snapshot repository:
+
+	SONATYPE_BEARER=<token> \
+	  ./.github/scripts/sonatype-upload.sh --snapshot dist/bundles
+
+Snapshot deployments use `PUT` requests to upload each artifact individually to
+`https://central.sonatype.com/repository/maven-snapshots/`.
+
+The bnd workspace uses snapshot builds when the `-snapshot:` instruction is commented out
+(prefixed with `#`) in `cnf/build.bnd`. When `-snapshot:` is active (not commented), the
+build produces release versions instead.
+
+##### Deployment Status Check
+
+After uploading, verify the deployment status and optionally clean up:
+
+	# Check release deployment status (reads DEPLOYMENTID from file)
+	SONATYPE_BEARER=<token> \
+	  ./.github/scripts/sonatype-status.sh [--clean] dist/bundles
+
+	# Check snapshot deployment (verifies all jar files are available)
+	SONATYPE_BEARER=<token> \
+	  ./.github/scripts/sonatype-status.sh --snapshot [--clean] dist/bundles
+
+For release deployments, the status script reads the deployment ID from
+`<release-dir>_DEPLOYMENTID.txt` and queries `/api/v1/publisher/status`.
+
+For snapshot deployments, the status script compares all jar files in the
+deployment folder against the snapshot repository URL.
+
+The `--clean` flag removes the release directory after a successful status check,
+preparing it for the next deployment cycle.
+
+##### Gradle Integration
+
+To call the Sonatype upload after a successful Gradle publish, add a task to your `build.gradle`
+(adjust the script path to match your project structure):
+
+	tasks.register('sonatypeUpload', Exec) {
+	    dependsOn ':publish'
+	    group = 'publishing'
+	    description = 'Upload artifacts to Sonatype Central Portal'
+	    commandLine './.github/scripts/sonatype-upload.sh', 'dist/bundles'
+	    environment 'SONATYPE_BEARER', System.getenv('SONATYPE_BEARER') ?: ''
+	}
+
+##### Maven Integration
+
+To call the Sonatype upload after a successful Maven deploy, use the `exec-maven-plugin`
+(adjust the script path to match your project structure):
+
+	<plugin>
+	    <groupId>org.codehaus.mojo</groupId>
+	    <artifactId>exec-maven-plugin</artifactId>
+	    <executions>
+	        <execution>
+	            <id>sonatype-upload</id>
+	            <phase>deploy</phase>
+	            <goals><goal>exec</goal></goals>
+	            <configuration>
+	                <executable>./.github/scripts/sonatype-upload.sh</executable>
+	                <arguments>
+	                    <argument>dist/bundles</argument>
+	                </arguments>
+	            </configuration>
+	        </execution>
+	    </executions>
+	</plugin>
+
 
 
 ### Use of .m2 Local Repository
@@ -164,13 +268,13 @@ The class name of the plugin is `aQute.bnd.repository.maven.provider.MavenBndRep
 | `releaseUrl`     | `URI` |         | Comma separated list of URLs to the repositories of released artifacts.|
 | `snapshotUrl`    | `URI` |         | Comma separated list of URLs to the repositories of snapshot artifacts.|
 | `stagingUrl`    | `URI` |         | A single URL to the repositories staging repository. This is required, e.g. for a release to maven central, which usually goes through a staging repository.|
-| `sonatypeMode`   | `none`\|`manual`\|`autopublish` | `none` | Controls how artifacts are published to Maven Central via the Sonatype Central Portal. `none`: standard Maven repository behavior; `manual`: upload for validation but requires manual publishing approval; `autopublish`: automatically publish after validation. Requires Bearer Token authentication via [-connection-settings]. |
+| `sonatypeMode`   | enum `none` `manual` `autopublish` | `none` | Controls how artifacts are published to Maven Central via the Sonatype Central Portal. `none`: standard Maven repository behavior; `manual`: upload for validation but requires manual publishing approval; `autopublish`: automatically publish after validation. Requires Bearer Token authentication via [-connection-settings]. |
 | `local`          | `PATH`| `~/.m2/repository` | The file path to the local Maven repository.  |
 |                  |       |                    | If specified, it should use forward slashes. If the directory does not exist, the plugin will attempt to create it.|
 |                  |       |         | The default can be overridden with the `maven.repo.local` System property.|
 | `readOnly`       | `true`|`false` | `false` | If set to _truthy_ then this repository is read only.|
 | `name`           | `NAME`| `Maven` | The name of the repository.|
-| `index`          | `PATH`| `cnf/<name>.mvn` | The path to the _index_ file. The index file is a list of Maven _coordinates_.|
+| `index`          | `PATH`| `cnf/<name>.mvn` | The path to the _index_ file. The index file is a list of Maven _coordinates_ (text with one GAV per line or pom.xml).|
 | `tags`           | `STRING`|  | Comma separated list of tags. (e.g. resolve, baseline, release) Use a placeholder like &lt;&lt;EMPTY&gt;&gt; to exclude the repo from resolution. The `resolve` tag is picked up by the [-runrepos](/instructions/runrepos.html) instruction.|
 | `source`         | `STRING`| `org.osgi:org.osgi.service.log:1.3.0 org.osgi:org.osgi.service.log:1.2.0` | A space, comma, semicolon, or newline separated GAV string. |
 | `noupdateOnRelease` | `true|false` | `false` | If set to _truthy_ then this repository will not update the `index` when a non-snapshot artifact is released.|
@@ -181,7 +285,13 @@ If no `releaseUrl` nor a `snapshotUrl` are specified then the repository is _loc
 
 For finding archives, both URLs are used. For releasing, only the first or the `stagingUrl` is used.
 
-The `index` file specifies a view on the remote repository, it _scopes_ it. Since we use the bnd repositories to resolve against, it is impossible to resolve against the world. The index file falls under source control, it is stored in the source control management system. This guarantees that at any time the project is checked out it has the same views on its repository. This is paramount to prevent build breackages due to changes in repositories.
+The `index` file specifies a view on the remote repository, it _scopes_ it. Since we use the bnd repositories to resolve against, it is impossible to resolve against the world. The index file falls under source control, it is stored in the source control management system. This guarantees that at any time the project is checked out it has the same views on its repository. This is paramount to prevent build breackages due to changes in repositories. 
+The index file supports two formats: 
+
+- a) text file with one GAV per line or
+- b) Maven _pom.xml_ content (note that not the full maven pom.xml features are supported. Mainly the `<dependency>` entries are relevant.
+
+Note on auto-detection of index format: If bnd detects xml it assumes `pom.xml`, otherwise the text-file format is assumed.
 
 Alternative, the GAV's can be specified in the file where the repository is defined with the  `source` configuration property. This is a string separated by either whitespace, commas, semicolons, or any combination thereof.
 
@@ -237,7 +347,7 @@ The Maven Bnd Repository uses the bnd Http Client. See the [-connection-settings
 
 ## Tagging
 
-This plugin supports Tagging via the `tags` configuration property. See [Tagging of repository plugins](/chapters/870-plugins.html#tagging-of-repository-plugins) for more details.
+This plugin supports Tagging via the `tags` configuration property. See [Tagging of repository plugins](/plugins/#tagging-of-repository-plugins) for more details.
 
 ## IDEs
 

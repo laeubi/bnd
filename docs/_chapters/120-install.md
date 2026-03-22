@@ -1,9 +1,9 @@
 ---
-order: 120
 title: How to install bnd
-layout: default
+layout: bnd
+parent: Getting Started
+nav_order: 2
 ---
-
 bnd is not a single product, it is a library (bndlib) used in many different software build environments. It runs inside Maven, ant, gradle, Eclipse, sbt, and maybe one day in Intellij. To install bnd, you will have to install these tools. 
 
 <div>
@@ -22,9 +22,14 @@ You can also run bnd command as executable jar, which can be downloaded from [JF
 
 ```bash
 # Install bnd CLI
-$ curl -L -o biz.aQute.bnd-7.1.0.jar \
-	https://bndtools.jfrog.io/artifactory/update-latest/biz/aQute/bnd/biz.aQute.bnd/7.1.0/biz.aQute.bnd-7.1.0.jar
-$ alias bnd='java -jar "$PWD/biz.aQute.bnd-7.1.0.jar"'
+curl -Lk -o ~/biz.aQute.bnd.jar \
+	https://bndtools.jfrog.io/artifactory/update-latest/biz/aQute/bnd/biz.aQute.bnd/{{ site.data.bnd_version.baseline_version }}/biz.aQute.bnd-{{ site.data.bnd_version.baseline_version }}.jar
+
+# create alias for easy use via 'bnd'
+alias bnd='java -jar ~/biz.aQute.bnd.jar'
+
+# display bnd version to verify installation
+bnd version
 
 # Run commands
 bnd <command>

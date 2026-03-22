@@ -871,6 +871,59 @@ public class ProjectTest {
 	}
 
 	@Test
+	public void testRepoCollectorNonJar() throws Exception {
+		try (Workspace ws = getWorkspace(IO.getFile("testresources/ws-repononjar"));
+			Project project = ws.getProject("org.example.impl");
+			RepoCollector rc = new RepoCollector(project);
+		) {
+
+			List<RepositoryPlugin> repositories = project.getRepositories();
+			RepositoryPlugin repo = ws.getRepository("Maven Central");
+			assertNotNull(repo);
+
+			Collection<Container> repoRefs = rc.repoRefs();
+			System.out.println(repoRefs);
+			assertThat(repoRefs).hasSize(3);
+			assertThat(IO.normalizePath(repoRefs.toString()))
+				.contains(
+					"cnf/cache/org/weasis/thirdparty/org/opencv/libopencv_java/4.6.0-dcm/libopencv_java-4.6.0-dcm-linux-aarch64.so",
+					"cnf/cache/org/weasis/thirdparty/org/opencv/libopencv_java/4.6.0-dcm/libopencv_java-4.6.0-dcm-linux-x86-64.so",
+					"cnf/cache/org/weasis/thirdparty/org/opencv/libopencv_java/4.6.0-dcm/libopencv_java-4.6.0-dcm-macosx-aarch64.dylib");
+
+			ProjectBuilder builder = project.getBuilder(null);
+			Jar jar = builder.build();
+
+			assertTrue(IO.normalizePath(jar.getDirectory("linux-aarch64")
+				.get("linux-aarch64/libopencv_java.so")
+				.toString())
+				.endsWith(
+					"cnf/cache/org/weasis/thirdparty/org/opencv/libopencv_java/4.6.0-dcm/libopencv_java-4.6.0-dcm-linux-aarch64.so"));
+			assertEquals("a", IO.collect(jar.getDirectory("linux-aarch64")
+				.get("linux-aarch64/libopencv_java.so")
+				.openInputStream()));
+
+			assertTrue(IO.normalizePath(jar.getDirectory("linux-x86-64")
+				.get("linux-x86-64/libopencv_java.so")
+				.toString())
+				.endsWith(
+					"cnf/cache/org/weasis/thirdparty/org/opencv/libopencv_java/4.6.0-dcm/libopencv_java-4.6.0-dcm-linux-x86-64.so"));
+			assertEquals("b", IO.collect(jar.getDirectory("linux-x86-64")
+				.get("linux-x86-64/libopencv_java.so")
+				.openInputStream()));
+
+			assertTrue(IO.normalizePath(jar.getDirectory("macos-aarch64")
+				.get("macos-aarch64/libopencv_java.so")
+				.toString())
+				.endsWith(
+					"cnf/cache/org/weasis/thirdparty/org/opencv/libopencv_java/4.6.0-dcm/libopencv_java-4.6.0-dcm-macosx-aarch64.dylib"));
+			assertEquals("c", IO.collect(jar.getDirectory("macos-aarch64")
+				.get("macos-aarch64/libopencv_java.so")
+				.openInputStream()));
+
+		}
+	}
+
+	@Test
 	public void testClasspath() throws Exception {
 		File project = new File("").getAbsoluteFile();
 		File workspace = project.getParentFile();
@@ -1217,6 +1270,38 @@ public class ProjectTest {
 			top.setProperty("-outputmask", "${@bsn}-${version;===s;${@version}}.jar");
 			assertEquals(new File(top.getTarget(), "p1-42.0.0.jar"),
 				top.getOutputFile(builder.getBsn(), builder.getVersion()));
+		}
+	}
+
+	@Test
+	public void testExportVersionUsesSnapshotInstructionFromWorkspace() throws Exception {
+		try (Workspace ws = getWorkspace(IO.getFile("testresources/export"));
+			Project project = ws.getProject("mvn.deploy.bnd")) {
+			File[] files = project.build();
+			assertTrue(project.getErrors()
+				.isEmpty(), "Errors: " + project.getErrors() + " Warnings: " + project.getWarnings());
+			assertNotNull(files);
+
+			File projectJarFile = IO.getFile(project.getBase(), "generated/mvn.deploy.bnd.jar");
+			File exportedJarFile = IO.getFile(project.getBase(), "generated/mvn.deploy.bnd.executable.jar");
+			assertTrue(projectJarFile.isFile(), "project jar should be generated");
+			assertTrue(exportedJarFile.isFile(), "exported executable jar should be generated");
+
+			try (Jar projectJar = new Jar(projectJarFile); Jar exportedJar = new Jar(exportedJarFile)) {
+				String projectVersion = projectJar.getManifest()
+					.getMainAttributes()
+					.getValue(Constants.BUNDLE_VERSION);
+				String exportedVersion = exportedJar.getManifest()
+					.getMainAttributes()
+					.getValue(Constants.BUNDLE_VERSION);
+
+				assertTrue(Pattern.matches("0\\.1\\.2\\.\\d+", projectVersion),
+					"project bundle should keep timestamp qualifier without SNAPSHOT: " + projectVersion);
+				assertEquals("0.1.2", exportedVersion,
+					"exported executable bundle should apply empty -snapshot and remove qualifier");
+				assertFalse(projectVersion.contains("SNAPSHOT"));
+				assertFalse(exportedVersion.contains("SNAPSHOT"));
+			}
 		}
 	}
 

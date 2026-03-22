@@ -12,6 +12,7 @@ on:
     - '.github/**/*rebuild*'
     - '!CONTRIBUTING.md'
     - '!DEV_README.md'
+    - '!README.md'
   pull_request:
     paths:
     - '**'
@@ -20,6 +21,7 @@ on:
     - '.github/**/*rebuild*'
     - '!CONTRIBUTING.md'
     - '!DEV_README.md'
+    - '!README.md'
 
 env:
   LC_ALL: en_US.UTF-8
@@ -57,27 +59,27 @@ jobs:
       dist-bundles: Dist_Bundles_JDK${{ matrix.java }}_${{ matrix.os }}
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
     - name: Git Checkout
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
     - name: Set up Java ${{ matrix.java }}
-      uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
       with:
         distribution: 'temurin'
         java-version: |
           8
           ${{ matrix.java }}
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2
+      uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
     - name: Build
       id: build
       run: |
         ./.github/scripts/rebuild-build.sh
     - name: Upload dist/bundles
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
       with:
         name: Dist_Bundles_JDK${{ matrix.java }}_${{ matrix.os }}
         if-no-files-found: error
@@ -100,23 +102,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594
       with:
         egress-policy: audit # TODO: change to 'egress-policy: block' after couple of runs
 
     - name: Git Checkout
-      uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
     - name: Set up Java 8 + ${{ matrix.java }}
-      uses: actions/setup-java@dded0888837ed1f317902acf8a20df0ad188d165
+      uses: actions/setup-java@be666c2fcd27ec809703dec50e508c2fdc7f6654
       with:
         distribution: 'temurin'
         java-version: |
           8
           ${{ matrix.java }}
     - name: Set up Gradle
-      uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2
+      uses: gradle/actions/setup-gradle@0723195856401067f7a2779048b490ace7a47d7c
     - name: Download dist/bundles
-      uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53
+      uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
       with:
         name: ${{ needs.build.outputs.dist-bundles }}
         path: dist/bundles
@@ -126,7 +128,7 @@ jobs:
         ${{ format(matrix.runner, './.github/scripts/rebuild-test.sh') }}
     - name: Upload Test Reports
       if: ${{ always() && ((steps.build.outcome == 'success') || (steps.build.outcome == 'failure')) }}
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
+      uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
       with:
         name: Rebuild_JDK${{ matrix.java }}_${{ matrix.os }}-test-reports
         path: |
@@ -134,11 +136,4 @@ jobs:
           maven/*/target/surefire-reports/TEST-*.xml
           gradle-plugins/*/build/test-results/*/TEST-*.xml
           gradle-plugins/build/reports/*
-    - name: Upload Rebuild P2 Repo artifact
-      if: ${{ github.event_name == 'pull_request' }}
-      uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4
-      with:
-        name: pr-${{ github.event.pull_request.number }}-jdk${{ matrix.java }}-${{ matrix.os }}
-        path: |
-          org.bndtools.p2/generated/org.bndtools.p2.jar
-        retention-days: 7   # keep for 7 days
+

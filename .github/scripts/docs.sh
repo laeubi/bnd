@@ -4,8 +4,5 @@ cd docs
 ruby --version
 gem --version
 bundle --version
+bash ./scripts/sync-baseline-version.sh
 bundle exec jekyll build
-
-# create search index under _site/pagefind
-pwd
-./pagefind --verbose --site _site --output-subdir pagefindindex
